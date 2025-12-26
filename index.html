@@ -2,39 +2,31 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-
-  <link rel="stylesheet" href="./style.css">
-
-  <link href="https://unpkg.com/material-components-web@latest/dist/material-components-web.min.css" rel="stylesheet">
-  <script defer src="https://unpkg.com/material-components-web@latest/dist/material-components-web.min.js"></script>
-
-  <!-- If your app.js no longer uses these globals, you can remove both lines below -->
-  <script defer src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js" crossorigin="anonymous"></script>
-  <script defer src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Hand X-Ray (MediaPipe + OpenCV.js)</title>
+  <link rel="stylesheet" href="./style.css" />
 </head>
 
 <body>
-  <h1>Hand landmark detection using the MediaPipe HandLandmarker task</h1>
+  <main class="wrap">
+    <h1>Hand X-ray (MediaPipe noSIMD + OpenCV.js)</h1>
 
-  <section id="demos" class="invisible">
-    <!-- ... keep your existing content ... -->
-
-    <div id="liveView" class="videoView">
-      <button id="webcamButton" class="mdc-button mdc-button--raised">
-        <span class="mdc-button__ripple"></span>
-        <span class="mdc-button__label">ENABLE WEBCAM</span>
-      </button>
-
-      <div style="position: relative;">
-        <video id="webcam" style="position: absolute;" autoplay playsinline muted></video>
-        <canvas class="output_canvas" id="output_canvas"
-                style="position:absolute; left:0px; top:0px;"></canvas>
-      </div>
+    <div class="row">
+      <button id="startBtn">Start camera</button>
+      <button id="stopBtn" disabled>Stop</button>
+      <span id="status" class="status">Idle</span>
     </div>
-  </section>
+
+    <div class="stage">
+      <video id="video" autoplay playsinline muted></video>
+      <canvas id="overlay"></canvas>
+    </div>
+
+    <!-- hidden processing canvases -->
+    <canvas id="proc" class="hidden"></canvas>
+    <canvas id="xray" class="hidden"></canvas>
+  </main>
 
   <script type="module" src="./app.js"></script>
 </body>
 </html>
-
