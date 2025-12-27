@@ -156,19 +156,21 @@ function drawSkeletonGlowAndBones(results) {
   const t = performance.now() * 0.001;
 
   octx.save();
-  octx.globalCompositeOperation = "screen";
   octx.lineCap = "round";
   octx.lineJoin = "round";
 
   for (const lm of hands) {
-    // PASS 1: dim thick glow tube (cyan-dim around skeleton)
+    // =========================
+    // PASS 1: soft cyan glow tube (behind)
+    // =========================
     octx.save();
+    octx.globalCompositeOperation = "screen";
     octx.strokeStyle = `rgba(0,255,255,${GLOW_ALPHA})`;
     octx.shadowColor = "rgba(0,255,255,0.45)";
     octx.shadowBlur = GLOW_BLUR;
 
     for (let i = 0; i < HAND_CONNECTIONS.length; i++) {
-      const [a,b] = HAND_CONNECTIONS[i];
+      const [a, b] = HAND_CONNECTIONS[i];
       const pa = lm[a], pb = lm[b];
 
       const ax = pa.x * W, ay = pa.y * H;
@@ -177,34 +179,59 @@ function drawSkeletonGlowAndBones(results) {
       const info = segmentInfo(i, ax, ay, bx, by, t);
       if (!info) continue;
 
-      // ---- per-segment brightness (stable random) + fade along segment ----
-		// ---- random brightness per segment (stable) ----
-		const rB   = hash01(i + 4242);
-		const rEnd = hash01(i + 4243);
+      octx.lineWidth = info.segW * GLOW_W_MULT;
+      octx.beginPath();
+      octx.moveTo(info.ax2, info.ay2);
+      octx.lineTo(info.bx2, info.by2);
+      octx.stroke();
+    }
+    octx.restore();
 
-		// start brightness (alpha) varies per segment
-		const aStart = 0.45 + 0.50 * rB;                 // 0.45 .. 0.95
+    // =========================
+    // PASS 2: core skeleton with PER-SEGMENT GRADIENT (on top)
+    // =========================
+    octx.save();
+    octx.globalCompositeOperation = "lighter";
 
-		// end is darker (fade start -> end)
-		const aEnd   = aStart * (0.08 + 0.28 * rEnd);    // ~8% .. 36% of start
+    // IMPORTANT: no shadow blur here, otherwise gradient looks uniform
+    octx.shadowBlur = 0;
+    octx.shadowColor = "transparent";
 
-		// Core fade MUST be drawn without shadow, otherwise glow hides the gradient
-		octx.save();
-		octx.globalCompositeOperation = "lighter";  // helps see the fade
-		octx.shadowBlur = 0;
-		octx.shadowColor = "transparent";
+    for (let i = 0; i < HAND_CONNECTIONS.length; i++) {
+      const [a, b] = HAND_CONNECTIONS[i];
+      const pa = lm[a], pb = lm[b];
 
-		// draw a visible fade along the segment
-		strokeFadedSegment(octx, info.ax2, info.ay2, info.bx2, info.by2, info.segW, aStart, aEnd, 10);
-		octx.restore();
+      const ax = pa.x * W, ay = pa.y * H;
+      const bx = pb.x * W, by = pb.y * H;
 
-		// Endpoint blobs: start blob brighter than end blob
+      const info = segmentInfo(i, ax, ay, bx, by, t);
+      if (!info) continue;
+
+      // ---- Randomize brightness per segment (stable) ----
+      const rB   = hash01(i + 4242);   // stable 0..1
+      const rEnd = hash01(i + 4243);
+
+      // start alpha varies per segment
+      const aStart = 0.40 + 0.55 * rB;                 // 0.40 .. 0.95
+
+      // end alpha is smaller => visible fade
+      const aEnd   = aStart * (0.2 + 0.1 * rEnd);    // ~2% .. 20% of start
+
+      // ---- TRUE GRADIENT stroke (bright -> dim) ----
+      const grad = octx.createLinearGradient(info.ax2, info.ay2, info.bx2, info.by2);
+      grad.addColorStop(0, `rgba(0,255,255,${aStart})`);
+      grad.addColorStop(1, `rgba(0,255,255,${aEnd})`);
+      octx.strokeStyle = grad;
+
+      octx.lineWidth = info.segW;
+      octx.beginPath();
+      octx.moveTo(info.ax2, info.ay2);
+      octx.lineTo(info.bx2, info.by2);
+      octx.stroke();
+
+      // ---- endpoint blobs match brightness (start brighter than end) ----
+      // ---- endpoint blobs match brightness (start brighter than end) ----
 		const dotR = Math.max(DOT_MIN_R, info.segW * DOT_SCALE);
-
-		octx.save();
-		octx.globalCompositeOperation = "lighter";
-		octx.shadowColor = SKEL_GLOW;
-		octx.shadowBlur  = MAIN_SHADOW_BLUR;
 
 		// start blob (bright)
 		octx.fillStyle = `rgba(0,255,255,${aStart})`;
@@ -218,55 +245,8 @@ function drawSkeletonGlowAndBones(results) {
 		octx.arc(info.bx2, info.by2, dotR, 0, Math.PI * 2);
 		octx.fill();
 
-		octx.restore();
-
-
     }
-    octx.restore();
 
-    // PASS 2: bright bones with random width + rounded endpoints
-    octx.save();
-    octx.strokeStyle = SKEL_COLOR;
-    octx.shadowColor = SKEL_GLOW;
-    octx.shadowBlur = MAIN_SHADOW_BLUR;
-
-    for (let i = 0; i < HAND_CONNECTIONS.length; i++) {
-      const [a,b] = HAND_CONNECTIONS[i];
-      const pa = lm[a], pb = lm[b];
-
-      const ax = pa.x * W, ay = pa.y * H;
-      const bx = pb.x * W, by = pb.y * H;
-
-      const info = segmentInfo(i, ax, ay, bx, by, t);
-      if (!info) continue;
-
-      // main segment
-      octx.lineWidth = info.segW;
-      octx.beginPath();
-      octx.moveTo(info.ax2, info.ay2);
-      octx.lineTo(info.bx2, info.by2);
-      octx.stroke();
-
-      // round endpoint blobs
-      const dotR = Math.max(DOT_MIN_R, info.segW * DOT_SCALE);
-      // round endpoint blobs (as bright as skeleton)
-		octx.save();
-		octx.globalCompositeOperation = "screen";
-
-		// same brightness as skeleton stroke
-		octx.fillStyle = SKEL_COLOR;
-
-		// give blobs same glow as the skeleton
-		octx.shadowColor = SKEL_GLOW;
-		octx.shadowBlur  = MAIN_SHADOW_BLUR;
-
-		octx.beginPath();
-		octx.arc(info.ax2, info.ay2, dotR, 0, Math.PI * 2);
-		octx.arc(info.bx2, info.by2, dotR, 0, Math.PI * 2);
-		octx.fill();
-		octx.restore();
-
-    }
     octx.restore();
   }
 
@@ -276,29 +256,51 @@ function drawSkeletonGlowAndBones(results) {
 // ===== MediaPipe (no-SIMD) =====
 let handLandmarker = null;
 
-async function initMediaPipeNoSIMD() {
-  setStatus("Loading MediaPipe (no-SIMD) ...");
+async function initMediaPipePreferGPU() {
+  setStatus("Loading MediaPipe (prefer GPU) ...");
 
   const WASM_BASE = "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.21/wasm";
+
+  // 先用 SIMD（通常更快）；若你的目標包含舊手機/舊瀏覽器，再改成 nosimd
   const wasmFileset = {
-    wasmLoaderPath: `${WASM_BASE}/vision_wasm_nosimd_internal.js`,
-    wasmBinaryPath: `${WASM_BASE}/vision_wasm_nosimd_internal.wasm`,
+    wasmLoaderPath: `${WASM_BASE}/vision_wasm_internal.js`,
+    wasmBinaryPath: `${WASM_BASE}/vision_wasm_internal.wasm`,
   };
 
+  try {
+    handLandmarker = await HandLandmarker.createFromOptions(wasmFileset, {
+      baseOptions: {
+        modelAssetPath: "./models/hand_landmarker.task",
+        delegate: "GPU",
+      },
+      runningMode: "VIDEO",
+      numHands: 2,
+      minHandDetectionConfidence: 0.2,
+      minHandPresenceConfidence: 0.2,
+      minTrackingConfidence: 0.2,
+    });
+    setStatus("MediaPipe ready ✅ (GPU)");
+    return;
+  } catch (e) {
+    console.warn("GPU init failed, falling back to CPU:", e);
+  }
+
+  // fallback CPU
   handLandmarker = await HandLandmarker.createFromOptions(wasmFileset, {
     baseOptions: {
       modelAssetPath: "./models/hand_landmarker.task",
       delegate: "CPU",
     },
     runningMode: "VIDEO",
-    numHands: 2,
+    numHands: 1,
     minHandDetectionConfidence: 0.2,
     minHandPresenceConfidence: 0.2,
     minTrackingConfidence: 0.2,
   });
 
-  setStatus("MediaPipe ready ✅ (no-SIMD)");
+  setStatus("MediaPipe ready ✅ (CPU fallback)");
 }
+
 
 // ===== main loop =====
 let stream = null;
@@ -363,7 +365,7 @@ async function start() {
 
     setStatus(`Camera ready (${video.videoWidth}x${video.videoHeight}).`);
 
-    await initMediaPipeNoSIMD();
+    await initMediaPipePreferGPU();
 
     running = true;
     frame = 0;
