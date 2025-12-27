@@ -273,15 +273,15 @@ function initModeButtons() {
   bar.style.marginBottom = "8px";
 
   modeBtnMP = document.createElement("button");
-  modeBtnMP.textContent = "MediaPipe";
+  modeBtnMP.textContent = "X-ray";
   modeBtnMP.type = "button";
 
   modeBtnA = document.createElement("button");
-  modeBtnA.textContent = "MP + OpenCV ROI X-ray";
+  modeBtnA.textContent = "ROI X-ray";
   modeBtnA.type = "button";
 
   modeBtnB = document.createElement("button");
-  modeBtnB.textContent = "MP + OpenCV Medical BG";
+  modeBtnB.textContent = "Medical BG";
   modeBtnB.type = "button";
 
   for (const b of [modeBtnMP, modeBtnA, modeBtnB]) {
@@ -342,9 +342,9 @@ async function setMode(nextMode) {
   bgDirty = true;
 
   const name =
-    (mode === MODE_MP) ? "MediaPipe" :
-    (mode === MODE_MP_CV_A) ? "MP + OpenCV ROI X-ray" :
-    "MP + OpenCV Medical BG";
+    (mode === MODE_MP) ? "X-ray" :
+    (mode === MODE_MP_CV_A) ? "ROI X-ray" :
+    "Medical BG";
 
   setStatus("Mode: " + name);
 }
